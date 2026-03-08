@@ -85,6 +85,52 @@ async function updateGuildLeaderboard(client, guildId) {
 }
 
 /**
+ * Updates ONLY the active user count in the existing embed
+ * @param {import('discord.js').Client} client 
+ * @param {string} guildId 
+ */
+async function updateActiveCount(client, guildId) {
+    const config = await client.db.config.get(guildId);
+    if (!config || !config.statsChannelId || !config.lastMessageId) return;
+
+    try {
+        const guild = client.guilds.cache.get(guildId);
+        if (!guild) return;
+
+        const channel = guild.channels.cache.get(config.statsChannelId) || await guild.channels.fetch(config.statsChannelId).catch(() => null);
+        if (!channel) return;
+
+        const message = await channel.messages.fetch(config.lastMessageId).catch(() => null);
+        if (!message || !message.embeds[0]) return;
+
+        // Count active users in voice
+        let activeCount = 0;
+        guild.channels.cache.filter(c => c.isVoiceBased()).forEach(vc => {
+            activeCount += vc.members.filter(m => !m.user.bot).size;
+        });
+
+        const oldEmbed = message.embeds[0];
+        const newEmbed = EmbedBuilder.from(oldEmbed);
+
+        // Update the "Sesteki Üye" field (usually index 2 based on previous code)
+        // To be safe, we look for it by name
+        const fields = [...oldEmbed.fields];
+        const activeFieldIdx = fields.findIndex(f => f.name.includes('Sesteki Üye'));
+
+        if (activeFieldIdx !== -1) {
+            fields[activeFieldIdx] = { ...fields[activeFieldIdx], value: `\`${activeCount} Kişi\`` };
+            newEmbed.setFields(fields);
+
+            // Edit message with updated count
+            await message.edit({ embeds: [newEmbed] });
+        }
+
+    } catch (err) {
+        // Silently fail to avoid console Spam on voice moves
+    }
+}
+
+/**
  * Starts the leaderboard update loop
  * @param {import('discord.js').Client} client 
  */
@@ -105,4 +151,4 @@ function startLeaderboardTask(client) {
     }, 15 * 60 * 1000);
 }
 
-module.exports = { startLeaderboardTask, updateGuildLeaderboard };
+module.exports = { startLeaderboardTask, updateGuildLeaderboard, updateActiveCount };

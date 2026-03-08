@@ -1,4 +1,5 @@
 const { Events } = require('discord.js');
+const { updateActiveCount } = require('../tasks/leaderboardUpdate');
 
 module.exports = {
     name: Events.VoiceStateUpdate,
@@ -46,6 +47,10 @@ module.exports = {
                 userData.currentJoinTime = null;
                 await client.db.voice.set(userKey, userData);
             }
+        }
+        // Update active count in embed immediately
+        if (oldChannel?.id !== newChannel?.id) {
+            updateActiveCount(client, guild.id);
         }
     }
 };
