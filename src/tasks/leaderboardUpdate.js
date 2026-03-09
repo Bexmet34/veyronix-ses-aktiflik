@@ -27,26 +27,32 @@ async function updateGuildLeaderboard(client, guildId) {
         const top18 = guildUsers.slice(0, 18);
         const totalServerTime = guildUsers.reduce((acc, curr) => acc + curr.totalTime, 0);
 
+        // Fetch all top members to ensure names are loaded after restart
+        const topMembers = await Promise.all(
+            top18.map(async (u) => {
+                const member = guild.members.cache.get(u.userId) || await guild.members.fetch(u.userId).catch(() => null);
+                return { ...u, member };
+            })
+        );
+
         let activeCount = 0;
         guild.channels.cache.filter(c => c.isVoiceBased()).forEach(vc => {
             activeCount += vc.members.filter(m => !m.user.bot).size;
         });
 
-        const winnersText = top18.length > 0 ?
-            top18.slice(0, 3).map((u, i) => {
+        const winnersText = topMembers.length > 0 ?
+            topMembers.slice(0, 3).map((u, i) => {
                 const emoji = ['🥇', '🥈', '🥉'][i];
-                const member = guild.members.cache.get(u.userId);
-                const name = member ? member.user.tag : `Bilinmeyen (#${u.userId.slice(-4)})`;
+                const name = u.member ? u.member.user.tag : `Bilinmeyen (#${u.userId.slice(-4)})`;
                 return `${emoji} **${name}** - \`${formatDuration(u.totalTime)}\``;
             }).join('\n') : "Henüz veri yok.";
 
-        const listSlice = top18.slice(3);
+        const listSlice = topMembers.slice(3);
         let detailList = "```prolog\n#   Kullanıcı           Süre      Aktiflik Payı\n--------------------------------------------\n";
 
         if (listSlice.length > 0) {
             listSlice.forEach((u, i) => {
-                const member = guild.members.cache.get(u.userId);
-                const name = (member ? member.user.username : `User_${u.userId.slice(-4)}`).padEnd(17).slice(0, 17);
+                const name = (u.member ? u.member.user.username : `User_${u.userId.slice(-4)}`).padEnd(17).slice(0, 17);
                 const duration = formatDuration(u.totalTime).padEnd(10);
                 const share = totalServerTime > 0 ? ((u.totalTime / totalServerTime) * 100).toFixed(0) : 0;
                 const rank = (i + 4).toString().padStart(2, '0'); // Starts from 4
