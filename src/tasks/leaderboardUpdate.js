@@ -24,16 +24,17 @@ async function updateGuildLeaderboard(client, guildId) {
             .map(d => ({ userId: d.id.split('_')[1], ...d.value }))
             .sort((a, b) => b.totalTime - a.totalTime);
 
-        const top18 = guildUsers.slice(0, 18);
         const totalServerTime = guildUsers.reduce((acc, curr) => acc + curr.totalTime, 0);
 
-        // Fetch all top members to ensure names are loaded after restart
-        const topMembers = await Promise.all(
-            top18.map(async (u) => {
-                const member = guild.members.cache.get(u.userId) || await guild.members.fetch(u.userId).catch(() => null);
-                return { ...u, member };
-            })
-        );
+        // Find the top 18 members who are STILL in the server
+        const topMembers = [];
+        for (const u of guildUsers) {
+            if (topMembers.length >= 18) break;
+            const member = guild.members.cache.get(u.userId) || await guild.members.fetch(u.userId).catch(() => null);
+            if (member) {
+                topMembers.push({ ...u, member });
+            }
+        }
 
         let activeCount = 0;
         guild.channels.cache.filter(c => c.isVoiceBased()).forEach(vc => {
