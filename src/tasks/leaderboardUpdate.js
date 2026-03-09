@@ -24,7 +24,7 @@ async function updateGuildLeaderboard(client, guildId) {
             .map(d => ({ userId: d.id.split('_')[1], ...d.value }))
             .sort((a, b) => b.totalTime - a.totalTime);
 
-        const top15 = guildUsers.slice(0, 15);
+        const top18 = guildUsers.slice(0, 18);
         const totalServerTime = guildUsers.reduce((acc, curr) => acc + curr.totalTime, 0);
 
         let activeCount = 0;
@@ -32,28 +32,35 @@ async function updateGuildLeaderboard(client, guildId) {
             activeCount += vc.members.filter(m => !m.user.bot).size;
         });
 
-        const winnersText = top15.length > 0 ?
-            top15.slice(0, 3).map((u, i) => {
+        const winnersText = top18.length > 0 ?
+            top18.slice(0, 3).map((u, i) => {
                 const emoji = ['🥇', '🥈', '🥉'][i];
                 const member = guild.members.cache.get(u.userId);
                 const name = member ? member.user.tag : `Bilinmeyen (#${u.userId.slice(-4)})`;
                 return `${emoji} **${name}** - \`${formatDuration(u.totalTime)}\``;
             }).join('\n') : "Henüz veri yok.";
 
+        const listSlice = top18.slice(3);
         let detailList = "```prolog\n#   Kullanıcı           Süre      Aktiflik Payı\n--------------------------------------------\n";
-        top15.forEach((u, i) => {
-            const member = guild.members.cache.get(u.userId);
-            const name = (member ? member.user.username : `User_${u.userId.slice(-4)}`).padEnd(17).slice(0, 17);
-            const duration = formatDuration(u.totalTime).padEnd(10);
-            const share = totalServerTime > 0 ? ((u.totalTime / totalServerTime) * 100).toFixed(0) : 0;
-            const rank = (i + 1).toString().padStart(2, '0');
-            detailList += `${rank}  ${name}  ${duration}  [%${share}]\n`;
-        });
+
+        if (listSlice.length > 0) {
+            listSlice.forEach((u, i) => {
+                const member = guild.members.cache.get(u.userId);
+                const name = (member ? member.user.username : `User_${u.userId.slice(-4)}`).padEnd(17).slice(0, 17);
+                const duration = formatDuration(u.totalTime).padEnd(10);
+                const share = totalServerTime > 0 ? ((u.totalTime / totalServerTime) * 100).toFixed(0) : 0;
+                const rank = (i + 4).toString().padStart(2, '0'); // Starts from 4
+                detailList += `${rank}  ${name}  ${duration}  [%${share}]\n`;
+            });
+        } else {
+            detailList += "   Henüz veri yok.\n";
+        }
+
         detailList += "--------------------------------------------\n```";
         detailList += "\n[Support](https://discord.gg/RZJE77KEVB) [Website](https://veyronixbot.vercel.app)";
 
         const embed = new EmbedBuilder()
-            .setTitle('📊 Ses Aktivite (Top 15)')
+            .setTitle('📊 Ses Aktivite (Top 18)')
             .setDescription('Turquoise Ses Aktiflik Listesi')
             .setColor(0x3498DB)
             .addFields(
